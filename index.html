@@ -235,6 +235,9 @@ td.mn { font-family: monospace; }
   .be { background: #fef3c7 !important; color: #92400e !important; -webkit-print-color-adjust: exact !important; }
 }
 </style>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
 </head>
 <body>
 
@@ -1127,6 +1130,19 @@ function exportar() {
   a.click();
   toast('Exportado!','ok');
 }
+</script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDB53gZW14xUutoWwJAh-EWwwu7gGJDR5U",
+  authDomain: "rotas-zardo.firebaseapp.com",
+  projectId: "rotas-zardo",
+  storageBucket: "rotas-zardo.appspot.com",
+  messagingSenderId: "561985236637",
+  appId: "1:561985236637:web:4f36c9209be575c316ae74"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 </script>
 </body>
 </html>
