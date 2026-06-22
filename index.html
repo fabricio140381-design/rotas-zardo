@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rotas Zardo</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; font-size: 14px; background: #0f1117; color: #e8eaf0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* HEADER */
+#header { background: #1a1d27; border-bottom: 1px solid #2e3350; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo .lg-t { font-weight: 700; font-size: 15px; }
+.logo small { color: #7a7f9a; font-size: 11px; display: block; }
+.hbtns { display: flex; gap: 6px; }
+
+/* ABAS PRINCIPAIS */
+#nav-tabs { background: #1a1d27; border-bottom: 1px solid #2e3350; display: flex; flex-shrink: 0; }
+.nav-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #7a7f9a; border-bottom: 2px solid transparent; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+.nav-tab:hover { color: #e8eaf0; }
+.nav-tab.ativo { color: #3b7ef4; border-bottom-color: #3b7ef4; }
+
+/* VIEWS */
+#view-rotas { display: flex; flex: 1; min-height: 0; }
+#view-rel { display: none; flex: 1; min-height: 0; flex-direction: column; background: #0f1117; }
+#view-rel.on { display: flex; }
+
+/* PAINEL ROTAS */
+#painel { width: 380px; background: #1a1d27; border-right: 1px solid #2e3350; overflow-y: auto; flex-shrink: 0; }
+#painel::-webkit-scrollbar { width: 4px; }
+#painel::-webkit-scrollbar-thumb { background: #2e3350; border-radius: 2px; }
+#mapa-wrap { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; }
+
+/* BOTÕES */
+.btn { padding: 7px 12px; border-radius: 7px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: opacity .15s; }
+.btn:hover { opacity: .85; }
+.btn-blue { background: #3b7ef4; color: #fff; }
+.btn-green { background: #22c55e; color: #fff; }
+.btn-gray { background: #22263a; color: #e8eaf0; border: 1px solid #2e3350; }
+.btn-block { width: 100%; justify-content: center; padding: 10px; font-size: 13px; }
+.btn-buscar { background: #3b7ef4; color: #fff; border: none; border-radius: 5px; padding: 4px 9px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.btn-buscar:disabled { background: #444; cursor: default; }
+.btn-add { width: 100%; background: transparent; border: 1px dashed #2e3350; border-radius: 7px; padding: 8px; color: #7a7f9a; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 10px; transition: all .15s; }
+.btn-add:hover { border-color: #3b7ef4; color: #3b7ef4; }
+.btn-rm { background: none; border: none; color: #7a7f9a; cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; }
+.btn-rm:hover { color: #ef4444; }
+
+/* COMPONENTES DO PAINEL */
+.fab-box { margin: 12px; background: rgba(59,126,244,.1); border: 1px solid rgba(59,126,244,.25); border-radius: 8px; padding: 10px 12px; }
+.fab-box .lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #3b7ef4; margin-bottom: 3px; }
+.fab-box .nome { font-size: 13px; font-weight: 600; }
+.fab-box .addr { font-size: 11px; color: #7a7f9a; margin-top: 2px; }
+.tip-box { margin: 0 12px 10px; background: rgba(59,126,244,.06); border: 1px solid rgba(59,126,244,.15); border-radius: 7px; padding: 9px 11px; font-size: 11px; color: #7a7f9a; line-height: 1.6; }
+.tip-box b { color: #3b7ef4; }
+#data-dia-box { margin: 0 12px 10px; background: rgba(34,197,94,.07); border: 1px solid rgba(34,197,94,.25); border-radius: 8px; padding: 10px 12px; }
+.data-dia-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #22c55e; margin-bottom: 6px; }
+.data-dia-row { display: flex; gap: 8px; align-items: center; }
+.data-dia-row input[type="date"] { background: #22263a; border: 1px solid #2e3350; border-radius: 6px; padding: 6px 10px; color: #e8eaf0; font-size: 12px; outline: none; flex: 1; }
+.data-dia-row input[type="date"]:focus { border-color: #22c55e; }
+.data-dia-status { font-size: 11px; margin-top: 5px; color: #7a7f9a; }
+.data-dia-status.salvo { color: #22c55e; }
+.data-dia-status.novo { color: #f59e0b; }
+.turno-sec { padding: 0 12px 8px; }
+.turno-hdr { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.turno-nome { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.dm { background: #3b7ef4; } .dt { background: #f4843b; }
+.turno-cnt { font-size: 11px; color: #7a7f9a; }
+.turno-hr { font-size: 11px; color: #7a7f9a; }
+.div { height: 1px; background: #2e3350; margin: 0 12px 10px; }
+.end-card { background: #22263a; border: 1px solid #2e3350; border-radius: 8px; padding: 9px 10px; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; transition: border-color .2s; }
+.end-card.ok { border-color: rgba(34,197,94,.5); }
+.end-card.erro { border-color: rgba(239,68,68,.45); }
+.end-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+.nm { background: rgba(59,126,244,.2); color: #3b7ef4; }
+.nt { background: rgba(244,132,59,.2); color: #f4843b; }
+.end-body { flex: 1; min-width: 0; }
+.end-body input.nome-inp { width: 100%; background: transparent; border: none; outline: none; color: #e8eaf0; font-size: 12px; font-weight: 600; padding: 0; margin-bottom: 4px; }
+.end-body input.nome-inp::placeholder { color: #7a7f9a; font-weight: 400; }
+.end-row { display: flex; gap: 5px; align-items: center; }
+.end-row input.addr-inp { flex: 1; background: transparent; border: none; outline: none; color: #7a7f9a; font-size: 11px; padding: 0; min-width: 0; }
+.end-row input.addr-inp::placeholder { color: #444; }
+.end-st { font-size: 10px; margin-top: 4px; display: none; }
+.end-st.ok { color: #22c55e; display: block; }
+.end-st.err { color: #ef4444; display: block; }
+.end-st.load { color: #f59e0b; display: block; }
+.calc-wrap { padding: 0 12px 8px; }
+.results { padding: 0 12px 12px; display: none; }
+.results.on { display: block; }
+.res-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #7a7f9a; margin-bottom: 8px; }
+.turno-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin: 5px 0 7px; }
+.r-card { background: #22263a; border: 1px solid #2e3350; border-radius: 8px; padding: 10px; margin-bottom: 6px; }
+.r-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.r-nome { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+.r-num { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+.r-metr { display: flex; gap: 10px; }
+.r-m { text-align: right; }
+.r-mv { font-size: 13px; font-weight: 700; font-family: monospace; }
+.r-ml { font-size: 10px; color: #7a7f9a; }
+.r-steps { font-size: 11px; color: #7a7f9a; line-height: 1.9; }
+.total-box { background: linear-gradient(135deg,rgba(59,126,244,.1),rgba(34,197,94,.07)); border: 1px solid rgba(59,126,244,.2); border-radius: 8px; padding: 10px; margin-top: 8px; display: none; justify-content: space-around; }
+.tot-i { text-align: center; }
+.tot-v { font-size: 18px; font-weight: 700; font-family: monospace; }
+.tot-l { font-size: 10px; color: #7a7f9a; margin-top: 1px; }
+.salvar-wrap { padding: 0 12px 12px; }
+
+/* MAPA */
+.map-ctrl { position: absolute; top: 10px; right: 10px; z-index: 500; display: flex; flex-direction: column; gap: 6px; }
+.map-btn { background: #1a1d27; border: 1px solid #2e3350; border-radius: 7px; padding: 7px 11px; color: #e8eaf0; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.map-btn:hover { border-color: #3b7ef4; }
+.map-btn.ativo { background: #3b7ef4; border-color: #3b7ef4; }
+#graf-panel { position: absolute; bottom: 0; left: 0; right: 0; background: #1a1d27; border-top: 1px solid #2e3350; padding: 12px; transform: translateY(100%); transition: transform .3s; z-index: 400; max-height: 50%; overflow-y: auto; }
+#graf-panel.aberto { transform: translateY(0); }
+.graf-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: 600; font-size: 13px; }
+.graf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.graf-card { background: #22263a; border: 1px solid #2e3350; border-radius: 8px; padding: 10px; }
+.graf-titulo { font-size: 11px; font-weight: 600; color: #7a7f9a; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+.graf-wrap { height: 140px; position: relative; }
+#legenda { position: absolute; bottom: 10px; left: 10px; background: #1a1d27; border: 1px solid #2e3350; border-radius: 7px; padding: 8px 12px; z-index: 500; font-size: 11px; box-shadow: 0 2px 8px rgba(0,0,0,.4); display: none; }
+.leg-i { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.leg-i:last-child { margin: 0; }
+.leg-ln { width: 20px; height: 3px; border-radius: 2px; }
+
+/* ======= RELATÓRIOS ======= */
+.rel-topbar { background: #1a1d27; border-bottom: 1px solid #2e3350; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.rel-topbar h2 { font-size: 14px; font-weight: 700; }
+.rel-topbar-btns { display: flex; gap: 8px; }
+.rel-tabs { display: flex; background: #1a1d27; border-bottom: 1px solid #2e3350; padding: 0 20px; flex-shrink: 0; }
+.rel-tab { padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #7a7f9a; border-bottom: 2px solid transparent; transition: all .15s; }
+.rel-tab:hover { color: #e8eaf0; }
+.rel-tab.ativo { color: #3b7ef4; border-bottom-color: #3b7ef4; }
+.rel-body { flex: 1; overflow-y: auto; padding: 20px; }
+.rel-sec { display: none; }
+.rel-sec.on { display: block; }
+
+.filtro-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; background: #1a1d27; border: 1px solid #2e3350; border-radius: 9px; padding: 12px 14px; }
+.filtro-bar label { font-size: 11px; color: #7a7f9a; font-weight: 600; }
+.filtro-bar input, .filtro-bar select { background: #22263a; border: 1px solid #2e3350; border-radius: 6px; padding: 6px 10px; color: #e8eaf0; font-size: 12px; outline: none; }
+.filtro-bar input:focus, .filtro-bar select:focus { border-color: #3b7ef4; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.kpi-card { background: #1a1d27; border: 1px solid #2e3350; border-radius: 10px; padding: 14px 16px; }
+.kpi-lbl { font-size: 10px; color: #7a7f9a; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
+.kpi-val { font-size: 22px; font-weight: 700; font-family: monospace; }
+.kpi-sub { font-size: 11px; color: #7a7f9a; margin-top: 3px; }
+
+.rel-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+.rc-card { background: #1a1d27; border: 1px solid #2e3350; border-radius: 10px; padding: 14px; }
+.rc-title { font-size: 11px; font-weight: 700; color: #7a7f9a; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; }
+.rc-wrap { height: 180px; position: relative; }
+
+.tbl-wrap { background: #1a1d27; border: 1px solid #2e3350; border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+.rtbl { width: 100%; border-collapse: collapse; }
+.rtbl th { background: #22263a; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #7a7f9a; border-bottom: 1px solid #2e3350; }
+.rtbl td { padding: 10px 14px; font-size: 12px; border-bottom: 1px solid #2e3350; vertical-align: middle; }
+.rtbl tr:last-child td { border-bottom: none; }
+.rtbl tr:hover td { background: rgba(59,126,244,.04); }
+.bm { background: rgba(59,126,244,.15); color: #3b7ef4; border-radius: 4px; padding: 2px 7px; font-size: 10px; font-weight: 700; }
+.bt { background: rgba(244,132,59,.15); color: #f4843b; border-radius: 4px; padding: 2px 7px; font-size: 10px; font-weight: 700; }
+.be { background: rgba(245,158,11,.12); color: #f59e0b; border-radius: 4px; padding: 2px 7px; font-size: 10px; }
+td.az { color: #3b7ef4; font-family: monospace; font-weight: 600; }
+td.vd { color: #22c55e; font-family: monospace; font-weight: 600; }
+td.mn { font-family: monospace; }
+
+.vazio { text-align: center; padding: 50px 20px; color: #7a7f9a; }
+.vazio-ic { font-size: 40px; margin-bottom: 12px; }
+.vazio p { font-size: 13px; line-height: 1.7; }
+
+/* LOADING / TOAST */
+#loading { position: fixed; inset: 0; background: rgba(15,17,23,.85); display: none; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 10px; }
+#loading.on { display: flex; }
+.spin { width: 32px; height: 32px; border: 3px solid #2e3350; border-top-color: #3b7ef4; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#load-txt { color: #7a7f9a; font-size: 13px; }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%) translateY(14px); background: #22263a; border: 1px solid #2e3350; border-radius: 8px; padding: 8px 16px; font-size: 12px; opacity: 0; transition: all .3s; z-index: 9998; pointer-events: none; white-space: nowrap; }
+#toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.ok { border-color: #22c55e; color: #22c55e; }
+#toast.err { border-color: #ef4444; color: #ef4444; }
+
+/* IMPRESSÃO */
+@media print {
+  /* Reset geral */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: #fff !important; color: #000 !important; overflow: visible !important; height: auto !important; min-height: 0 !important; display: block !important; }
+
+  /* Esconder tudo que não é relatório */
+  #header, #nav-tabs, #view-rotas, #loading, #toast,
+  .rel-topbar-btns, .rel-tabs, .filtro-bar,
+  #graf-panel, .map-ctrl { display: none !important; }
+
+  /* Mostrar a view de relatórios sempre */
+  #view-rel { display: block !important; width: 100% !important; min-height: 0 !important; }
+
+  /* Cabeçalho do relatório */
+  .rel-topbar { display: flex !important; background: #fff !important; border-bottom: 2px solid #333 !important; padding: 10px 0 14px !important; margin-bottom: 16px !important; }
+  .rel-topbar h2 { color: #000 !important; font-size: 20px !important; }
+
+  /* Body do relatório sem scroll */
+  .rel-body { padding: 0 !important; overflow: visible !important; display: block !important; }
+
+  /* Mostrar APENAS a seção ativa (.on) */
+  .rel-sec { display: none !important; }
+  .rel-sec.on { display: block !important; }
+
+  /* KPIs */
+  .kpi-grid { display: grid !important; grid-template-columns: repeat(4,1fr) !important; gap: 10px !important; margin-bottom: 16px !important; }
+  .kpi-card { background: #f5f5f5 !important; border: 1px solid #ccc !important; border-radius: 8px !important; padding: 12px !important; break-inside: avoid; }
+  .kpi-lbl { color: #555 !important; }
+  .kpi-val { color: #000 !important; font-size: 20px !important; }
+  .kpi-sub { color: #666 !important; }
+
+  /* Gráficos */
+  .rel-charts { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; margin-bottom: 16px !important; break-inside: avoid; }
+  .rc-card { background: #fff !important; border: 1px solid #ccc !important; border-radius: 8px !important; padding: 12px !important; break-inside: avoid; }
+  .rc-title { color: #555 !important; }
+  .rc-wrap { height: 160px !important; }
+  .rc-wrap canvas { max-width: 100% !important; max-height: 160px !important; }
+
+  /* Tabelas */
+  .tbl-wrap { border: 1px solid #ccc !important; background: #fff !important; border-radius: 0 !important; margin-bottom: 16px !important; break-inside: auto; }
+  .rtbl { width: 100% !important; }
+  .rtbl th { background: #f0f0f0 !important; color: #333 !important; font-size: 10px !important; padding: 8px 10px !important; }
+  .rtbl td { color: #000 !important; border-color: #ddd !important; font-size: 11px !important; padding: 7px 10px !important; }
+  .rtbl tr:hover td { background: transparent !important; }
+  .rtbl tr { break-inside: avoid; }
+  td.az { color: #1a56db !important; }
+  td.vd { color: #057a55 !important; }
+  td.mn { color: #000 !important; }
+  .bm { background: #dbeafe !important; color: #1e40af !important; -webkit-print-color-adjust: exact !important; }
+  .bt { background: #ffedd5 !important; color: #c2410c !important; -webkit-print-color-adjust: exact !important; }
+  .be { background: #fef3c7 !important; color: #92400e !important; -webkit-print-color-adjust: exact !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="logo">
+    <span>🗺️</span>
+    <div>
+      <span class="lg-t">Rotas Zardo</span>
+      <small>Planejador de Rotas Técnicas</small>
+    </div>
+  </div>
+  <div class="hbtns">
+    <button class="btn btn-gray" onclick="limparTudo()">🗑️ Limpar Rotas</button>
+    <button class="btn btn-gray" onclick="exportar()">📋 Exportar TXT</button>
+  </div>
+</div>
+
+<!-- ABAS PRINCIPAIS -->
+<div id="nav-tabs">
+  <button class="nav-tab ativo" id="tab-rotas" onclick="mudarAba('rotas')">🗺️ Planejar Rotas</button>
+  <button class="nav-tab" id="tab-rel" onclick="mudarAba('relatorios')">📊 Relatórios</button>
+</div>
+
+<!-- VIEW: ROTAS -->
+<div id="view-rotas">
+
+  <!-- PAINEL ESQUERDO -->
+  <div id="painel">
+    <div class="fab-box">
+      <div class="lbl">📍 Base de partida / chegada</div>
+      <div class="nome">Zardo Esquadrias — Fábrica</div>
+      <div class="addr">R. Santos Dumont, 616 – Floresta, Porto Alegre/RS</div>
+    </div>
+    <div class="tip-box">
+      💡 Defina a <b>data</b> abaixo, busque endereços, calcule e clique <b>💾 Salvar Dia</b>. Para novo dia, clique <b>🔄 Novo Dia</b>.
+    </div>
+
+    <div id="data-dia-box">
+      <div class="data-dia-lbl">📅 Data das rotas</div>
+      <div class="data-dia-row">
+        <input type="date" id="input-data-dia"/>
+        <button class="btn btn-gray" style="padding:5px 10px;font-size:11px" onclick="novoDia()">&#x1f504; Novo Dia</button>
+      </div>
+      <div class="data-dia-status" id="data-dia-status"></div>
+    </div>
+    <!-- MANHÃ -->
+    <div class="turno-sec">
+      <div class="turno-hdr">
+        <div class="turno-nome"><span class="dot dm"></span>Turno Manhã <span class="turno-cnt" id="cnt-m">— 0 endereços</span></div>
+        <span class="turno-hr">08:00–12:00</span>
+      </div>
+      <div id="list-m"></div>
+      <button class="btn-add" onclick="addEnd('m')">+ Adicionar endereço manhã</button>
+    </div>
+    <div class="div"></div>
+    <!-- TARDE -->
+    <div class="turno-sec">
+      <div class="turno-hdr">
+        <div class="turno-nome"><span class="dot dt"></span>Turno Tarde <span class="turno-cnt" id="cnt-t">— 0 endereços</span></div>
+        <span class="turno-hr">13:30–18:00</span>
+      </div>
+      <div id="list-t"></div>
+      <button class="btn-add" onclick="addEnd('t')">+ Adicionar endereço tarde</button>
+    </div>
+    <div class="div"></div>
+    <div class="calc-wrap">
+      <button class="btn btn-blue btn-block" onclick="calcularRotas()">🔄 Calcular Todas as Rotas</button>
+    </div>
+    <!-- RESULTADOS -->
+    <div class="results" id="results">
+      <div class="res-titulo">📊 Resultado das Rotas</div>
+      <div id="res-lista"></div>
+      <div class="total-box" id="total-box">
+        <div class="tot-i"><div class="tot-v" id="tot-d" style="color:#3b7ef4">—</div><div class="tot-l">Distância Total</div></div>
+        <div class="tot-i"><div class="tot-v" id="tot-t" style="color:#22c55e">—</div><div class="tot-l">Tempo Total</div></div>
+        <div class="tot-i"><div class="tot-v" id="tot-n" style="color:#f59e0b">—</div><div class="tot-l">Endereços</div></div>
+      </div>
+    </div>
+    <div class="salvar-wrap" id="salvar-wrap" style="display:none">
+      <button class="btn btn-green btn-block" onclick="salvarDia()">💾 Salvar Dia no Relatório</button>
+    </div>
+  </div>
+
+  <!-- MAPA -->
+  <div id="mapa-wrap">
+    <div id="map"></div>
+    <div class="map-ctrl">
+      <button class="map-btn" id="btn-graf" onclick="toggleGraf()">📈 Gráficos</button>
+      <button class="map-btn" onclick="fitMapa()">⊡ Ver Tudo</button>
+    </div>
+    <div id="legenda">
+      <div class="leg-i"><div class="leg-ln" style="background:#3b7ef4"></div>Manhã (ida)</div>
+      <div class="leg-i"><div class="leg-ln" style="background:#f4843b"></div>Tarde (ida)</div>
+      <div class="leg-i"><div style="width:20px;border-top:2px dashed #666"></div>Volta</div>
+    </div>
+    <div id="graf-panel">
+      <div class="graf-hdr">
+        <span>📈 Análise das Rotas</span>
+        <button class="btn btn-gray" style="padding:4px 10px;font-size:11px" onclick="toggleGraf()">✕ Fechar</button>
+      </div>
+      <div class="graf-grid">
+        <div class="graf-card"><div class="graf-titulo">Distância por Destino (km)</div><div class="graf-wrap"><canvas id="ch-d"></canvas></div></div>
+        <div class="graf-card"><div class="graf-titulo">Tempo por Destino (min)</div><div class="graf-wrap"><canvas id="ch-t"></canvas></div></div>
+        <div class="graf-card"><div class="graf-titulo">Manhã vs Tarde</div><div class="graf-wrap"><canvas id="ch-c"></canvas></div></div>
+        <div class="graf-card"><div class="graf-titulo">Proporção do Dia</div><div class="graf-wrap"><canvas id="ch-p"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW: RELATÓRIOS -->
+<div id="view-rel">
+  <div class="rel-topbar">
+    <h2>📊 Relatórios de Rotas</h2>
+    <div class="rel-topbar-btns">
+      <button class="btn btn-gray" onclick="limparHistorico()">🗑️ Limpar Histórico</button>
+      <button class="btn btn-gray" onclick="imprimir()">🖨️ Imprimir</button>
+    </div>
+  </div>
+  <div class="rel-tabs">
+    <button class="rel-tab ativo" id="rtab-dia" onclick="mudarRelTab('dia')">📅 Por Dia</button>
+    <button class="rel-tab" id="rtab-sem" onclick="mudarRelTab('semana')">📆 Por Semana</button>
+    <button class="rel-tab" id="rtab-mes" onclick="mudarRelTab('mes')">🗓️ Por Mês</button>
+  </div>
+  <div class="rel-body">
+
+    <!-- RELATÓRIO DIÁRIO -->
+    <div class="rel-sec on" id="rel-dia">
+      <div class="filtro-bar">
+        <label>📅 Data:</label>
+        <input type="date" id="filtro-data" onchange="renderDia()"/>
+        <button class="btn btn-blue" style="padding:6px 12px" onclick="filtroHoje()">Hoje</button>
+      </div>
+      <div id="rel-dia-content"></div>
+    </div>
+
+    <!-- RELATÓRIO SEMANAL -->
+    <div class="rel-sec" id="rel-semana">
+      <div class="filtro-bar">
+        <label>📆 Semana de:</label>
+        <input type="date" id="filtro-sem" onchange="renderSemana()"/>
+        <button class="btn btn-blue" style="padding:6px 12px" onclick="filtroSemanaAtual()">Semana Atual</button>
+      </div>
+      <div id="rel-sem-content"></div>
+    </div>
+
+    <!-- RELATÓRIO MENSAL -->
+    <div class="rel-sec" id="rel-mes">
+      <div class="filtro-bar">
+        <label>🗓️ Mês:</label>
+        <select id="filtro-mes" onchange="renderMes()">
+          <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+          <option value="2">Março</option><option value="3">Abril</option>
+          <option value="4">Maio</option><option value="5">Junho</option>
+          <option value="6">Julho</option><option value="7">Agosto</option>
+          <option value="8">Setembro</option><option value="9">Outubro</option>
+          <option value="10">Novembro</option><option value="11">Dezembro</option>
+        </select>
+        <select id="filtro-ano" onchange="renderMes()"></select>
+        <button class="btn btn-blue" style="padding:6px 12px" onclick="filtroMesAtual()">Mês Atual</button>
+      </div>
+      <div id="rel-mes-content"></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="loading"><div class="spin"></div><div id="load-txt">Calculando...</div></div>
+<div id="toast"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ======================================================
+// ESTADO
+// ======================================================
+const FAB = { lat: -30.01638, lng: -51.19580 };
+var ctrs = { m: 0, t: 0 };
+var rotasData = [];
+var graficos  = {};
+var linhas    = [];
+var marcadores = [];
+var mapa;
+var relGraficos = {};
+
+// ======================================================
+// ABAS PRINCIPAIS
+// ======================================================
+function mudarAba(aba) {
+  document.getElementById('view-rotas').style.display = aba === 'rotas' ? 'flex' : 'none';
+  var vr = document.getElementById('view-rel');
+  vr.style.display = aba === 'relatorios' ? 'flex' : 'none';
+  vr.classList.toggle('on', aba === 'relatorios');
+  document.getElementById('tab-rotas').classList.toggle('ativo', aba === 'rotas');
+  document.getElementById('tab-rel').classList.toggle('ativo', aba === 'relatorios');
+  if (aba === 'relatorios') {
+    filtroHoje();
+    filtroSemanaAtual();
+    filtroMesAtual();
+  }
+}
+
+// ======================================================
+// MAPA
+// ======================================================
+window.addEventListener('load', function() {
+  mapa = L.map('map', { zoomControl: true }).setView([FAB.lat, FAB.lng], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(mapa);
+  var icFab = L.divIcon({
+    html: '<div style="background:#3b7ef4;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5)">🏭</div>',
+    className: '', iconSize: [34,34], iconAnchor: [17,17]
+  });
+  L.marker([FAB.lat, FAB.lng], { icon: icFab }).addTo(mapa)
+    .bindPopup('<b>Zardo Esquadrias</b><br>R. Santos Dumont, 616 – Floresta');
+  addEnd('m');
+  addEnd('t');
+  // Inicializar data com hoje
+  document.getElementById('input-data-dia').value = dataHoje();
+  // Verificar se já tem dados salvos para hoje
+  var hist = carregarHistorico();
+  var entrada = hist.find(function(h){ return h.data === dataHoje(); });
+  if (entrada) {
+    var stEl = document.getElementById('data-dia-status');
+    stEl.className = 'data-dia-status salvo';
+    stEl.textContent = '\u2713 Já salvo hoje (' + entrada.nEnd + ' endereços). Clique 🔄 Novo Dia para próximo dia.';
+  }
+  // Preencher anos no select
+  var selAno = document.getElementById('filtro-ano');
+  var ano = new Date().getFullYear();
+  for (var i = ano; i >= ano - 3; i--) {
+    var op = document.createElement('option');
+    op.value = i; op.textContent = i;
+    selAno.appendChild(op);
+  }
+});
+
+// ======================================================
+// GEOCODIFICAÇÃO
+// ======================================================
+async function geocodificar(endereco) {
+  var q = encodeURIComponent(endereco + ', Porto Alegre, RS, Brasil');
+  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=3&q=' + q + '&countrycodes=br&addressdetails=1';
+  var resp = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  var data = await resp.json();
+  if (!data || data.length === 0) return null;
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display: data[0].display_name };
+}
+
+// ======================================================
+// ROTA via OSRM
+// ======================================================
+async function calcularRota(lat1, lng1, lat2, lng2) {
+  var url = 'https://router.project-osrm.org/route/v1/driving/'
+    + lng1 + ',' + lat1 + ';' + lng2 + ',' + lat2
+    + '?overview=full&geometries=geojson&steps=false';
+  var resp = await fetch(url);
+  if (!resp.ok) throw new Error('OSRM HTTP ' + resp.status);
+  var data = await resp.json();
+  if (data.code !== 'Ok') throw new Error('OSRM: ' + data.code);
+  var rota = data.routes[0];
+  var coords = rota.geometry.coordinates.map(function(c) { return [c[1], c[0]]; });
+  return { distancia: rota.distance, duracao: rota.duration, coords: coords };
+}
+
+function haversine(lat1, lng1, lat2, lng2) {
+  var R = 6371000, r = Math.PI/180;
+  var dL = (lat2-lat1)*r, dG = (lng2-lng1)*r;
+  var a = Math.sin(dL/2)*Math.sin(dL/2) + Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dG/2)*Math.sin(dG/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ======================================================
+// ENDEREÇOS
+// ======================================================
+function addEnd(turno) {
+  ctrs[turno]++;
+  var id = turno + '_' + ctrs[turno];
+  var lista = document.getElementById('list-' + turno);
+  var n = lista.children.length + 1;
+  var div = document.createElement('div');
+  div.className = 'end-card';
+  div.id = 'ec_' + id;
+  div.dataset.lat = '';
+  div.dataset.lng = '';
+  div.dataset.turno = turno;
+  div.innerHTML =
+    '<div class="end-num ' + (turno==='m'?'nm':'nt') + '" id="en_' + id + '">' + n + '</div>' +
+    '<div class="end-body">' +
+      '<input class="nome-inp" id="nm_' + id + '" type="text" placeholder="Nome do cliente" autocomplete="off"/>' +
+      '<div class="end-row">' +
+        '<input class="addr-inp" id="ad_' + id + '" type="text" placeholder="Ex: Av Ipiranga 1200 Azenha" autocomplete="off" ' +
+          'onkeydown="if(event.key===\'Enter\'){event.preventDefault();buscar(\'' + id + '\')}">' +
+        '<button class="btn-buscar" id="bb_' + id + '" onclick="buscar(\'' + id + '\')">🔍 Buscar</button>' +
+      '</div>' +
+      '<div class="end-st" id="st_' + id + '"></div>' +
+    '</div>' +
+    '<button class="btn-rm" onclick="removeEnd(\'' + id + '\',\'' + turno + '\')">×</button>';
+  lista.appendChild(div);
+  atualizarCnt(turno);
+  document.getElementById('nm_' + id).focus();
+}
+
+async function buscar(id) {
+  var addrEl = document.getElementById('ad_' + id);
+  var stEl   = document.getElementById('st_' + id);
+  var btnEl  = document.getElementById('bb_' + id);
+  var card   = document.getElementById('ec_' + id);
+  var addr   = addrEl.value.trim();
+  if (!addr) { stEl.className='end-st err'; stEl.textContent='⚠ Digite um endereço antes de buscar.'; return; }
+  stEl.className = 'end-st load'; stEl.textContent = '⏳ Buscando...';
+  btnEl.disabled = true;
+  card.dataset.lat = ''; card.dataset.lng = '';
+  card.classList.remove('ok','erro');
+  try {
+    var res = await geocodificar(addr);
+    if (!res) {
+      stEl.className = 'end-st err'; stEl.textContent = '✗ Não encontrado. Tente: Rua Nome 123 Bairro';
+      card.classList.add('erro');
+    } else {
+      card.dataset.lat = res.lat; card.dataset.lng = res.lng;
+      stEl.className = 'end-st ok';
+      stEl.textContent = '✓ ' + res.display.split(',').slice(0,3).join(',');
+      card.classList.add('ok');
+      var cor = card.dataset.turno === 'm' ? '#3b7ef4' : '#f4843b';
+      var ic = L.divIcon({ html: '<div style="background:' + cor + ';width:11px;height:11px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>', className:'', iconSize:[11,11], iconAnchor:[5,5] });
+      var mk = L.marker([res.lat, res.lng], { icon: ic }).addTo(mapa);
+      marcadores.push(mk);
+      mapa.setView([res.lat, res.lng], 14);
+    }
+  } catch(e) {
+    stEl.className = 'end-st err'; stEl.textContent = '✗ Erro de rede. Verifique sua conexão.';
+    card.classList.add('erro');
+  } finally { btnEl.disabled = false; }
+}
+
+function removeEnd(id, turno) {
+  var el = document.getElementById('ec_' + id);
+  if (el) el.remove();
+  renumerar(turno); atualizarCnt(turno);
+}
+function renumerar(turno) {
+  var lista = document.getElementById('list-' + turno);
+  for (var i = 0; i < lista.children.length; i++) {
+    var n = lista.children[i].querySelector('[id^="en_"]');
+    if (n) n.textContent = i + 1;
+  }
+}
+function atualizarCnt(turno) {
+  var n = document.getElementById('list-' + turno).children.length;
+  document.getElementById('cnt-' + turno).textContent = '— ' + n + ' endereço' + (n !== 1 ? 's' : '');
+}
+
+// ======================================================
+// CALCULAR ROTAS
+// ======================================================
+function getEnds(turno) {
+  var lista = document.getElementById('list-' + turno);
+  var result = [];
+  for (var i = 0; i < lista.children.length; i++) {
+    var el = lista.children[i];
+    var lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng);
+    var nm = el.querySelector('.nome-inp'), ad = el.querySelector('.addr-inp');
+    if (lat && lng) result.push({ nome: nm ? nm.value||'Cliente':'Cliente', addr: ad ? ad.value:'', lat:lat, lng:lng, turno:turno });
+  }
+  return result;
+}
+
+async function calcularRotas() {
+  var endM = getEnds('m'), endT = getEnds('t');
+  if (!endM.length && !endT.length) { toast('Adicione e busque pelo menos um endereço!','err'); return; }
+  loading('Calculando rotas...');
+  limparLinhas(); rotasData = [];
+  try {
+    for (var i = 0; i < endM.length; i++) {
+      loading('Manhã: rota ' + (i+1) + '/' + endM.length + '...');
+      var r = await processarRota(endM[i], 'm'); if (r) rotasData.push(r);
+    }
+    for (var j = 0; j < endT.length; j++) {
+      loading('Tarde: rota ' + (j+1) + '/' + endT.length + '...');
+      var r2 = await processarRota(endT[j], 't'); if (r2) rotasData.push(r2);
+    }
+    renderResultados(); renderGraficos(); fitMapa();
+    document.getElementById('legenda').style.display = 'block';
+    document.getElementById('salvar-wrap').style.display = 'block';
+    toast('Rotas calculadas!','ok');
+  } catch(e) { toast('Erro: ' + e.message,'err'); }
+  finally { hideLoading(); }
+}
+
+async function processarRota(dest, turno) {
+  var cor = turno==='m' ? '#3b7ef4' : '#f4843b';
+  var ida, volta, estim = false;
+  try {
+    ida   = await calcularRota(FAB.lat, FAB.lng, dest.lat, dest.lng);
+    volta = await calcularRota(dest.lat, dest.lng, FAB.lat, FAB.lng);
+  } catch(e) {
+    estim = true;
+    var d = haversine(FAB.lat, FAB.lng, dest.lat, dest.lng) * 1.4;
+    var t = (d/30)*3600;
+    ida   = { distancia:d, duracao:t, coords:[[FAB.lat,FAB.lng],[dest.lat,dest.lng]] };
+    volta = { distancia:d, duracao:t, coords:[[dest.lat,dest.lng],[FAB.lat,FAB.lng]] };
+  }
+  var lIda = L.polyline(ida.coords, { color:cor, weight:4, opacity:.85 }).addTo(mapa);
+  linhas.push(lIda);
+  var lV = L.polyline(volta.coords, { color:cor, weight:2, opacity:.45, dashArray:'8 6' }).addTo(mapa);
+  linhas.push(lV);
+  var n = rotasData.length + 1;
+  var ic = L.divIcon({ html:'<div style="background:'+cor+';color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5)">'+n+'</div>', className:'', iconSize:[30,30], iconAnchor:[15,15] });
+  var mk = L.marker([dest.lat, dest.lng], { icon:ic }).addTo(mapa)
+    .bindPopup('<b>'+dest.nome+'</b><br><small>'+(turno==='m'?'🌅 Manhã':'🌇 Tarde')+(estim?' · estimativa':'')+'</small><br><br>Ida: <b>'+fmtD(ida.distancia)+'</b> · <b>'+fmtT(ida.duracao)+'</b><br>Volta: <b>'+fmtD(volta.distancia)+'</b> · <b>'+fmtT(volta.duracao)+'</b>');
+  marcadores.push(mk);
+  return { nome:dest.nome, addr:dest.addr, turno:turno, estim:estim,
+    ida:{d:ida.distancia, t:ida.duracao}, volta:{d:volta.distancia, t:volta.duracao},
+    totD:ida.distancia+volta.distancia, totT:ida.duracao+volta.duracao };
+}
+
+// ======================================================
+// RESULTADOS
+// ======================================================
+function renderResultados() {
+  var lista = document.getElementById('res-lista');
+  lista.innerHTML = '';
+  var totD=0,totT=0,dM=0,tM=0,dT=0,tT=0;
+  function grupo(arr, turno) {
+    if (!arr.length) return;
+    var cor = turno==='m'?'#3b7ef4':'#f4843b';
+    var h = document.createElement('div'); h.className='turno-lbl'; h.style.color=cor;
+    h.textContent = turno==='m'?'🌅 Turno Manhã':'🌇 Turno Tarde';
+    lista.appendChild(h);
+    arr.forEach(function(r,i) {
+      var c = document.createElement('div'); c.className='r-card';
+      c.innerHTML = '<div class="r-card-top"><div class="r-nome"><div class="r-num" style="background:'+cor+'">'+(i+1)+'</div>'+r.nome+(r.estim?' <span style="font-size:9px;color:#f59e0b">(est.)</span>':'')+'</div><div class="r-metr"><div class="r-m"><div class="r-mv" style="color:#3b7ef4">'+fmtD(r.totD)+'</div><div class="r-ml">Total</div></div><div class="r-m"><div class="r-mv" style="color:#22c55e">'+fmtT(r.totT)+'</div><div class="r-ml">Tempo</div></div></div></div><div class="r-steps"><div>🏭 → 📍 '+r.nome+': <b>'+fmtD(r.ida.d)+'</b> · <b>'+fmtT(r.ida.t)+'</b></div><div>📍 → 🏭 Fábrica: <b>'+fmtD(r.volta.d)+'</b> · <b>'+fmtT(r.volta.t)+'</b></div></div>';
+      lista.appendChild(c);
+      totD+=r.totD; totT+=r.totT;
+      if(turno==='m'){dM+=r.totD;tM+=r.totT;}else{dT+=r.totD;tT+=r.totT;}
+    });
+  }
+  grupo(rotasData.filter(function(r){return r.turno==='m';}), 'm');
+  grupo(rotasData.filter(function(r){return r.turno==='t';}), 't');
+  document.getElementById('tot-d').textContent = fmtD(totD);
+  document.getElementById('tot-t').textContent = fmtT(totT);
+  document.getElementById('tot-n').textContent = rotasData.length;
+  document.getElementById('total-box').style.display = 'flex';
+  document.getElementById('results').classList.add('on');
+  window._cd = { todos:rotasData, dM:dM, tM:tM, dT:dT, tT:tT, totD:totD, totT:totT };
+}
+
+function renderGraficos() {
+  var d = window._cd; if (!d) return;
+  var todos=d.todos, labels=todos.map(function(r){return r.nome;}), cores=todos.map(function(r){return r.turno==='m'?'rgba(59,126,244,.8)':'rgba(244,132,59,.8)';});
+  var base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a7f9a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a7f9a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}};
+  Object.values(graficos).forEach(function(c){c.destroy();}); graficos={};
+  graficos.d=new Chart(document.getElementById('ch-d'),{type:'bar',data:{labels:labels,datasets:[{data:todos.map(function(r){return+(r.totD/1000).toFixed(2);}),backgroundColor:cores,borderRadius:5}]},options:base});
+  graficos.t=new Chart(document.getElementById('ch-t'),{type:'bar',data:{labels:labels,datasets:[{data:todos.map(function(r){return Math.round(r.totT/60);}),backgroundColor:cores,borderRadius:5}]},options:base});
+  graficos.c=new Chart(document.getElementById('ch-c'),{type:'bar',data:{labels:['Distância (km)','Tempo (min)'],datasets:[{label:'Manhã',data:[+(d.dM/1000).toFixed(2),Math.round(d.tM/60)],backgroundColor:'rgba(59,126,244,.8)',borderRadius:5},{label:'Tarde',data:[+(d.dT/1000).toFixed(2),Math.round(d.tT/60)],backgroundColor:'rgba(244,132,59,.8)',borderRadius:5}]},options:Object.assign({},base,{plugins:{legend:{display:true,labels:{color:'#7a7f9a',font:{size:10}}}}})});
+  graficos.p=new Chart(document.getElementById('ch-p'),{type:'doughnut',data:{labels:['Manhã','Tarde'],datasets:[{data:[Math.round(d.tM/60)||0,Math.round(d.tT/60)||0],backgroundColor:['rgba(59,126,244,.8)','rgba(244,132,59,.8)'],borderColor:['#3b7ef4','#f4843b'],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#7a7f9a',font:{size:10},padding:10}}}}});
+}
+
+// ======================================================
+// SALVAR DIA NO HISTÓRICO (localStorage)
+// ======================================================
+function salvarDia() {
+  if (!rotasData.length) { toast('Calcule as rotas primeiro!','err'); return; }
+  var dataSel = document.getElementById('input-data-dia').value;
+  if (!dataSel) { toast('Defina a data antes de salvar!','err'); return; }
+
+  var historico = carregarHistorico();
+  var d = window._cd;
+
+  // Buscar entrada existente para essa data
+  var entradaExistente = historico.find(function(h){ return h.data === dataSel; });
+
+  var novasRotas = rotasData.map(function(r){ return {
+    nome:r.nome, addr:r.addr, turno:r.turno, estim:r.estim,
+    ida:{d:r.ida.d, t:r.ida.t}, volta:{d:r.volta.d, t:r.volta.t},
+    totD:r.totD, totT:r.totT
+  };});
+
+  if (entradaExistente) {
+    // ACUMULAR: adicionar rotas novas às existentes (sem duplicar pelo nome)
+    var nomesExistentes = entradaExistente.rotas.map(function(r){ return r.nome + r.addr; });
+    var rotasParaAdicionar = novasRotas.filter(function(r){
+      return nomesExistentes.indexOf(r.nome + r.addr) === -1;
+    });
+    entradaExistente.rotas = entradaExistente.rotas.concat(rotasParaAdicionar);
+    // Recalcular totais somando tudo
+    var totD=0, totT=0, dM=0, tM=0, dT=0, tT=0;
+    entradaExistente.rotas.forEach(function(r){
+      totD+=r.totD; totT+=r.totT;
+      if(r.turno==='m'){dM+=r.totD;tM+=r.totT;}else{dT+=r.totD;tT+=r.totT;}
+    });
+    entradaExistente.totD=totD; entradaExistente.totT=totT;
+    entradaExistente.dM=dM; entradaExistente.tM=tM;
+    entradaExistente.dT=dT; entradaExistente.tT=tT;
+    entradaExistente.nEnd=entradaExistente.rotas.length;
+  } else {
+    // NOVA ENTRADA para essa data
+    historico.push({
+      data: dataSel,
+      rotas: novasRotas,
+      totD: d.totD, totT: d.totT,
+      dM:d.dM, tM:d.tM, dT:d.dT, tT:d.tT,
+      nEnd: rotasData.length
+    });
+  }
+
+  // Ordenar histórico por data
+  historico.sort(function(a,b){ return a.data.localeCompare(b.data); });
+  localStorage.setItem('zardo_historico', JSON.stringify(historico));
+
+  var dataBr = new Date(dataSel + 'T12:00:00').toLocaleDateString('pt-BR');
+  var total = historico.find(function(h){ return h.data === dataSel; });
+  var stEl = document.getElementById('data-dia-status');
+  stEl.className = 'data-dia-status salvo';
+  stEl.textContent = '✓ Salvo: ' + dataBr + ' — ' + total.nEnd + ' endereços, ' + fmtD(total.totD) + ', ' + fmtT(total.totT);
+  toast('Salvo para ' + dataBr + '!', 'ok');
+}
+
+function carregarHistorico() {
+  try { return JSON.parse(localStorage.getItem('zardo_historico') || '[]'); } catch(e) { return []; }
+}
+
+function limparHistorico() {
+  if (!confirm('Apagar todo o histórico de rotas?')) return;
+  localStorage.removeItem('zardo_historico');
+  renderDia(); renderSemana(); renderMes();
+  toast('Histórico apagado.','ok');
+}
+
+function dataHoje() {
+  var d = new Date(); return d.toISOString().slice(0,10);
+}
+
+function novoDia() {
+  // Avança para próximo dia útil e limpa tela — histórico preservado
+  var inputData = document.getElementById('input-data-dia');
+  var dataAtual = inputData.value ? new Date(inputData.value + 'T12:00:00') : new Date();
+  dataAtual.setDate(dataAtual.getDate() + 1);
+  while (dataAtual.getDay() === 0 || dataAtual.getDay() === 6) {
+    dataAtual.setDate(dataAtual.getDate() + 1);
+  }
+  var novaData = dataAtual.toISOString().slice(0,10);
+  inputData.value = novaData;
+
+  // Limpar tela (sem apagar histórico)
+  limparLinhas();
+  ['m','t'].forEach(function(t){document.getElementById('list-'+t).innerHTML='';atualizarCnt(t);});
+  document.getElementById('res-lista').innerHTML='';
+  document.getElementById('results').classList.remove('on');
+  document.getElementById('total-box').style.display='none';
+  document.getElementById('legenda').style.display='none';
+  document.getElementById('salvar-wrap').style.display='none';
+  rotasData=[];
+  Object.values(graficos).forEach(function(c){c.destroy();}); graficos={};
+  if(mapa){mapa.setView([FAB.lat,FAB.lng],13);}
+
+  // Verificar se já há dados salvos para essa nova data
+  var hist = carregarHistorico();
+  var existente = hist.find(function(h){ return h.data === novaData; });
+  var stEl = document.getElementById('data-dia-status');
+  if (existente) {
+    stEl.className = 'data-dia-status salvo';
+    var dataBr = new Date(novaData + 'T12:00:00').toLocaleDateString('pt-BR');
+    stEl.textContent = '✓ Já há ' + existente.nEnd + ' endereços salvos para ' + dataBr + '. Calcule mais para acumular.';
+  } else {
+    stEl.className = 'data-dia-status novo';
+    stEl.textContent = 'Novo dia pronto. Adicione os endereços.';
+  }
+  addEnd('m'); addEnd('t');
+  toast('Pronto para o próximo dia!', 'ok');
+}
+
+// ======================================================
+// RELATÓRIO: ABAS
+// ======================================================
+var relTabAtual = 'dia';
+function mudarRelTab(tab) {
+  relTabAtual = tab;
+  ['dia','semana','mes'].forEach(function(t){
+    document.getElementById('rel-' + t).classList.toggle('on', t === tab);
+    document.getElementById('rtab-' + (t==='semana'?'sem':(t==='mes'?'mes':t))).classList.toggle('ativo', t === tab);
+  });
+}
+
+// ======================================================
+// RELATÓRIO DIÁRIO
+// ======================================================
+function filtroHoje() {
+  document.getElementById('filtro-data').value = dataHoje();
+  renderDia();
+}
+
+function renderDia() {
+  var data = document.getElementById('filtro-data').value;
+  var historico = carregarHistorico();
+  var entrada = historico.find(function(h){ return h.data === data; });
+  var cont = document.getElementById('rel-dia-content');
+
+  if (!entrada) {
+    cont.innerHTML = '<div class="vazio"><div class="vazio-ic">📭</div><p>Nenhuma rota salva para esta data.<br>Calcule rotas na aba <b>Planejar Rotas</b> e clique em <b>💾 Salvar Dia</b>.</p></div>';
+    return;
+  }
+
+  var dataFmt = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  var html = '';
+
+  // KPIs
+  html += '<div class="kpi-grid">';
+  html += kpiCard('📏 Distância Total', fmtD(entrada.totD), 'ida + volta', '#3b7ef4');
+  html += kpiCard('⏱️ Tempo Total', fmtT(entrada.totT), 'estimado em trânsito', '#22c55e');
+  html += kpiCard('📍 Endereços', entrada.nEnd, 'visitados no dia', '#f59e0b');
+  html += kpiCard('🚗 Média/Visita', fmtD(entrada.totD/entrada.nEnd), fmtT(entrada.totT/entrada.nEnd) + ' por visita', '#a78bfa');
+  html += '</div>';
+
+  // Tabela de rotas
+  html += '<div class="tbl-wrap"><table class="rtbl">';
+  html += '<thead><tr><th>#</th><th>Cliente</th><th>Turno</th><th>Endereço</th><th>Dist. Ida</th><th>Tempo Ida</th><th>Dist. Volta</th><th>Tempo Volta</th><th>Total</th></tr></thead><tbody>';
+  entrada.rotas.forEach(function(r,i){
+    html += '<tr><td class="mn">' + (i+1) + '</td><td><b>' + r.nome + '</b></td>';
+    html += '<td>' + (r.turno==='m'?'<span class="bm">Manhã</span>':'<span class="bt">Tarde</span>') + (r.estim?'<span class="be" style="margin-left:4px">est.</span>':'') + '</td>';
+    html += '<td style="color:#7a7f9a;font-size:11px">' + (r.addr||'—') + '</td>';
+    html += '<td class="az">' + fmtD(r.ida.d) + '</td><td class="vd">' + fmtT(r.ida.t) + '</td>';
+    html += '<td class="az">' + fmtD(r.volta.d) + '</td><td class="vd">' + fmtT(r.volta.t) + '</td>';
+    html += '<td class="mn" style="font-weight:700">' + fmtD(r.totD) + ' / ' + fmtT(r.totT) + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // Gráficos
+  html += '<div class="rel-charts">';
+  html += '<div class="rc-card"><div class="rc-title">Distância por Cliente (km)</div><div class="rc-wrap"><canvas id="rc-d-dia"></canvas></div></div>';
+  html += '<div class="rc-card"><div class="rc-title">Tempo por Cliente (min)</div><div class="rc-wrap"><canvas id="rc-t-dia"></canvas></div></div>';
+  html += '</div>';
+
+  cont.innerHTML = html;
+
+  // Destruir gráficos anteriores
+  if (relGraficos.dDia) relGraficos.dDia.destroy();
+  if (relGraficos.tDia) relGraficos.tDia.destroy();
+
+  var labels = entrada.rotas.map(function(r){return r.nome;});
+  var cores  = entrada.rotas.map(function(r){return r.turno==='m'?'rgba(59,126,244,.8)':'rgba(244,132,59,.8)';});
+  var bopts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}};
+
+  relGraficos.dDia = new Chart(document.getElementById('rc-d-dia'), {type:'bar',data:{labels:labels,datasets:[{data:entrada.rotas.map(function(r){return+(r.totD/1000).toFixed(2);}),backgroundColor:cores,borderRadius:5}]},options:bopts});
+  relGraficos.tDia = new Chart(document.getElementById('rc-t-dia'), {type:'bar',data:{labels:labels,datasets:[{data:entrada.rotas.map(function(r){return Math.round(r.totT/60);}),backgroundColor:cores,borderRadius:5}]},options:bopts});
+}
+
+// ======================================================
+// RELATÓRIO SEMANAL
+// ======================================================
+function filtroSemanaAtual() {
+  var hoje = new Date();
+  var diaSem = hoje.getDay();
+  var segunda = new Date(hoje);
+  segunda.setDate(hoje.getDate() - (diaSem === 0 ? 6 : diaSem - 1));
+  document.getElementById('filtro-sem').value = segunda.toISOString().slice(0,10);
+  renderSemana();
+}
+
+function renderSemana() {
+  var inicio = document.getElementById('filtro-sem').value;
+  if (!inicio) return;
+  var dInicio = new Date(inicio + 'T12:00:00');
+  var dFim    = new Date(dInicio); dFim.setDate(dInicio.getDate() + 6);
+  var historico = carregarHistorico();
+  var entradas = historico.filter(function(h){
+    var d = new Date(h.data + 'T12:00:00');
+    return d >= dInicio && d <= dFim;
+  }).sort(function(a,b){return a.data.localeCompare(b.data);});
+
+  var cont = document.getElementById('rel-sem-content');
+  if (!entradas.length) {
+    cont.innerHTML = '<div class="vazio"><div class="vazio-ic">📭</div><p>Nenhuma rota salva nesta semana.</p></div>';
+    return;
+  }
+
+  var totD=0, totT=0, totN=0;
+  entradas.forEach(function(e){totD+=e.totD;totT+=e.totT;totN+=e.nEnd;});
+
+  var html = '<div class="kpi-grid">';
+  html += kpiCard('📏 Distância', fmtD(totD), 'total da semana', '#3b7ef4');
+  html += kpiCard('⏱️ Tempo', fmtT(totT), 'total em rotas', '#22c55e');
+  html += kpiCard('📍 Visitas', totN, 'endereços atendidos', '#f59e0b');
+  html += kpiCard('📅 Dias', entradas.length, 'dias com rotas', '#a78bfa');
+  html += '</div>';
+
+  // Gráfico evolução semanal
+  html += '<div class="rel-charts">';
+  html += '<div class="rc-card"><div class="rc-title">Distância por Dia (km)</div><div class="rc-wrap"><canvas id="rc-d-sem"></canvas></div></div>';
+  html += '<div class="rc-card"><div class="rc-title">Tempo por Dia (min)</div><div class="rc-wrap"><canvas id="rc-t-sem"></canvas></div></div>';
+  html += '</div>';
+
+  // Tabela resumo
+  html += '<div class="tbl-wrap"><table class="rtbl">';
+  html += '<thead><tr><th>Data</th><th>Dia</th><th>Visitas</th><th>Distância Total</th><th>Tempo Total</th><th>Manhã</th><th>Tarde</th></tr></thead><tbody>';
+  entradas.forEach(function(e){
+    var d = new Date(e.data + 'T12:00:00');
+    var diaNome = d.toLocaleDateString('pt-BR',{weekday:'long'});
+    var dataFmt = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    html += '<tr><td class="mn">' + dataFmt + '</td><td>' + diaNome + '</td>';
+    html += '<td class="mn">' + e.nEnd + '</td>';
+    html += '<td class="az">' + fmtD(e.totD) + '</td>';
+    html += '<td class="vd">' + fmtT(e.totT) + '</td>';
+    html += '<td><span class="bm">' + fmtD(e.dM) + ' / ' + fmtT(e.tM) + '</span></td>';
+    html += '<td><span class="bt">' + fmtD(e.dT) + ' / ' + fmtT(e.tT) + '</span></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  cont.innerHTML = html;
+
+  if (relGraficos.dSem) relGraficos.dSem.destroy();
+  if (relGraficos.tSem) relGraficos.tSem.destroy();
+  var labels = entradas.map(function(e){return new Date(e.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit'});});
+  var bopts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a7f9a',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}};
+  relGraficos.dSem = new Chart(document.getElementById('rc-d-sem'),{type:'bar',data:{labels:labels,datasets:[{data:entradas.map(function(e){return+(e.totD/1000).toFixed(2);}),backgroundColor:'rgba(59,126,244,.7)',borderRadius:5}]},options:bopts});
+  relGraficos.tSem = new Chart(document.getElementById('rc-t-sem'),{type:'bar',data:{labels:labels,datasets:[{data:entradas.map(function(e){return Math.round(e.totT/60);}),backgroundColor:'rgba(34,197,94,.7)',borderRadius:5}]},options:bopts});
+}
+
+// ======================================================
+// RELATÓRIO MENSAL
+// ======================================================
+function filtroMesAtual() {
+  var hoje = new Date();
+  document.getElementById('filtro-mes').value = hoje.getMonth();
+  document.getElementById('filtro-ano').value = hoje.getFullYear();
+  renderMes();
+}
+
+function renderMes() {
+  var mes = parseInt(document.getElementById('filtro-mes').value);
+  var ano = parseInt(document.getElementById('filtro-ano').value);
+  if (isNaN(mes) || isNaN(ano)) return;
+  var historico = carregarHistorico();
+  var entradas = historico.filter(function(h){
+    var d = new Date(h.data + 'T12:00:00');
+    return d.getMonth() === mes && d.getFullYear() === ano;
+  }).sort(function(a,b){return a.data.localeCompare(b.data);});
+
+  var cont = document.getElementById('rel-mes-content');
+  if (!entradas.length) {
+    cont.innerHTML = '<div class="vazio"><div class="vazio-ic">📭</div><p>Nenhuma rota salva neste mês.</p></div>';
+    return;
+  }
+
+  var totD=0,totT=0,totN=0,totDias=entradas.length;
+  entradas.forEach(function(e){totD+=e.totD;totT+=e.totT;totN+=e.nEnd;});
+
+  var nomeMes = new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long'});
+
+  var html = '<div class="kpi-grid">';
+  html += kpiCard('📏 Distância', fmtD(totD), 'total do mês', '#3b7ef4');
+  html += kpiCard('⏱️ Tempo', fmtT(totT), 'total em rotas', '#22c55e');
+  html += kpiCard('📍 Visitas', totN, 'endereços no mês', '#f59e0b');
+  html += kpiCard('📅 Dias Ativos', totDias, 'dias com rotas', '#a78bfa');
+  html += '</div>';
+
+  // Linha de tendência
+  html += '<div class="rel-charts">';
+  html += '<div class="rc-card"><div class="rc-title">Distância por Dia do Mês (km)</div><div class="rc-wrap"><canvas id="rc-d-mes"></canvas></div></div>';
+  html += '<div class="rc-card"><div class="rc-title">Acumulado de Distância (km)</div><div class="rc-wrap"><canvas id="rc-acum-mes"></canvas></div></div>';
+  html += '</div>';
+
+  // Tabela completa do mês
+  html += '<div class="tbl-wrap"><table class="rtbl">';
+  html += '<thead><tr><th>Data</th><th>Visitas</th><th>Distância</th><th>Tempo</th><th>Manhã Dist.</th><th>Tarde Dist.</th><th>Média/Visita</th></tr></thead><tbody>';
+  entradas.forEach(function(e){
+    var d = new Date(e.data+'T12:00:00');
+    html += '<tr><td class="mn"><b>'+d.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+'</b></td>';
+    html += '<td class="mn">'+e.nEnd+'</td>';
+    html += '<td class="az">'+fmtD(e.totD)+'</td>';
+    html += '<td class="vd">'+fmtT(e.totT)+'</td>';
+    html += '<td><span class="bm">'+fmtD(e.dM)+'</span></td>';
+    html += '<td><span class="bt">'+fmtD(e.dT)+'</span></td>';
+    html += '<td class="mn" style="color:#a78bfa">'+fmtD(e.totD/e.nEnd)+'</td></tr>';
+  });
+  // Linha de total
+  html += '<tr style="border-top:2px solid #3b7ef4"><td><b>TOTAL</b></td><td class="mn"><b>'+totN+'</b></td><td class="az"><b>'+fmtD(totD)+'</b></td><td class="vd"><b>'+fmtT(totT)+'</b></td><td colspan="2" style="color:#7a7f9a">'+totDias+' dias ativos</td><td class="mn" style="color:#a78bfa">'+fmtD(totD/totN)+'</td></tr>';
+  html += '</tbody></table></div>';
+
+  cont.innerHTML = html;
+
+  if (relGraficos.dMes)    relGraficos.dMes.destroy();
+  if (relGraficos.acumMes) relGraficos.acumMes.destroy();
+  var labels = entradas.map(function(e){return new Date(e.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});});
+  var bopts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a7f9a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#7a7f9a',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}}}};
+  relGraficos.dMes = new Chart(document.getElementById('rc-d-mes'),{type:'bar',data:{labels:labels,datasets:[{data:entradas.map(function(e){return+(e.totD/1000).toFixed(2);}),backgroundColor:'rgba(59,126,244,.7)',borderRadius:5}]},options:bopts});
+
+  // Acumulado
+  var acum = 0;
+  var acumData = entradas.map(function(e){ acum += e.totD/1000; return +acum.toFixed(2); });
+  relGraficos.acumMes = new Chart(document.getElementById('rc-acum-mes'),{type:'line',data:{labels:labels,datasets:[{data:acumData,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#22c55e'}]},options:bopts});
+}
+
+// ======================================================
+// HELPERS
+// ======================================================
+function kpiCard(lbl, val, sub, cor) {
+  return '<div class="kpi-card"><div class="kpi-lbl">'+lbl+'</div><div class="kpi-val" style="color:'+cor+'">'+val+'</div><div class="kpi-sub">'+sub+'</div></div>';
+}
+
+function fmtD(m) { return m < 1000 ? Math.round(m) + 'm' : (m/1000).toFixed(1) + 'km'; }
+function fmtT(s) {
+  var mn = Math.round(s/60);
+  if (mn < 60) return mn + 'min';
+  var h = Math.floor(mn/60), m = mn % 60;
+  return m ? h + 'h' + m + 'min' : h + 'h';
+}
+
+function limparLinhas() {
+  linhas.forEach(function(l){ try{mapa.removeLayer(l);}catch(e){} }); linhas=[];
+  marcadores.forEach(function(m){ try{mapa.removeLayer(m);}catch(e){} }); marcadores=[];
+}
+
+function limparTudo() {
+  // Limpa rotas do dia atual — NÃO apaga histórico salvo
+  limparLinhas();
+  ['m','t'].forEach(function(t){document.getElementById('list-'+t).innerHTML='';atualizarCnt(t);});
+  document.getElementById('res-lista').innerHTML='';
+  document.getElementById('results').classList.remove('on');
+  document.getElementById('total-box').style.display='none';
+  document.getElementById('legenda').style.display='none';
+  document.getElementById('salvar-wrap').style.display='none';
+  rotasData=[];
+  Object.values(graficos).forEach(function(c){c.destroy();}); graficos={};
+  if(mapa){mapa.setView([FAB.lat,FAB.lng],13);}
+  var stEl = document.getElementById('data-dia-status');
+  stEl.className = 'data-dia-status'; stEl.textContent = '';
+  addEnd('m'); addEnd('t');
+}
+
+function fitMapa() {
+  var tudo = linhas.concat(marcadores);
+  if (!tudo.length) return;
+  try { var grp = L.featureGroup(tudo); mapa.fitBounds(grp.getBounds().pad(.12)); } catch(e){}
+}
+
+function toggleGraf() {
+  document.getElementById('graf-panel').classList.toggle('aberto');
+  document.getElementById('btn-graf').classList.toggle('ativo');
+}
+
+function loading(txt) { document.getElementById('load-txt').textContent=txt; document.getElementById('loading').classList.add('on'); }
+function hideLoading() { document.getElementById('loading').classList.remove('on'); }
+
+function toast(msg, tipo) {
+  var el = document.getElementById('toast');
+  el.textContent=msg; el.className='toast on'+(tipo?' '+tipo:'');
+  setTimeout(function(){el.className='toast';},4000);
+}
+
+function imprimir() {
+  // Garante que a view de relatório está visível antes de imprimir
+  var vr = document.getElementById('view-rel');
+  var eraOculto = vr.style.display === 'none' || !vr.classList.contains('on');
+
+  // Força mostrar temporariamente se estava oculto
+  if (eraOculto) {
+    vr.style.display = 'flex';
+    vr.classList.add('on');
+  }
+
+  // Re-renderiza a seção ativa para garantir que os dados e canvas estejam prontos
+  if (relTabAtual === 'dia')     renderDia();
+  if (relTabAtual === 'semana')  renderSemana();
+  if (relTabAtual === 'mes')     renderMes();
+
+  // Aguarda um frame para os canvas renderizarem antes de imprimir
+  setTimeout(function() {
+    window.print();
+  }, 400);
+}
+
+function exportar() {
+  if (!rotasData.length) { toast('Calcule as rotas primeiro!','err'); return; }
+  var d = window._cd;
+  var txt = 'RELATÓRIO DE ROTAS — ZARDO ESQUADRIAS\n';
+  txt += 'Gerado: ' + new Date().toLocaleString('pt-BR') + '\n' + '─'.repeat(50) + '\n\n';
+  ['m','t'].forEach(function(turno){
+    var g = rotasData.filter(function(r){return r.turno===turno;});
+    if (!g.length) return;
+    txt += (turno==='m'?'TURNO MANHÃ (08:00–12:00)':'TURNO TARDE (13:30–18:00)') + '\n' + '─'.repeat(30) + '\n';
+    g.forEach(function(r,i){ txt += (i+1)+'. '+r.nome+(r.estim?' (estimativa)':'')+'\n   Ida: '+fmtD(r.ida.d)+' / '+fmtT(r.ida.t)+'\n   Volta: '+fmtD(r.volta.d)+' / '+fmtT(r.volta.t)+'\n   TOTAL: '+fmtD(r.totD)+' / '+fmtT(r.totT)+'\n\n'; });
+  });
+  txt += '─'.repeat(50)+'\nTOTAL DO DIA: '+fmtD(d.totD)+' / '+fmtT(d.totT)+' / '+rotasData.length+' endereços\n';
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=utf-8'}));
+  a.download = 'rotas-zardo-' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+  toast('Exportado!','ok');
+}
+</script>
+</body>
+</html>
