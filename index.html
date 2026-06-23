@@ -235,9 +235,10 @@ td.mn { font-family: monospace; }
   .be { background: #fef3c7 !important; color: #92400e !important; -webkit-print-color-adjust: exact !important; }
 }
 </style>
-<!-- Firebase SDK (Compat) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- Google Sheets Integration -->
+<script>
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzX5a9BTzHDirNaZRmc9fM2jCsUjMB3ZCceTkVWHfrVWPx6wj5zxWtJwyB4Z1e5SEI/exec';
+</script>
 </head>
 <body>
 
@@ -750,14 +751,21 @@ function salvarDia() {
   historico.sort(function(a,b){ return a.data.localeCompare(b.data); });
   localStorage.setItem('zardo_historico', JSON.stringify(historico));
 
-  // SALVAR NO FIRESTORE
+  // SALVAR NO GOOGLE SHEETS
   var dataObj = historico.find(function(h){ return h.data === dataSel; });
   if (dataObj) {
-    db.collection('rotas').doc(dataSel).set(dataObj).then(function(){
-      console.log('✅ Salvo no Firestore:', dataSel);
-    }).catch(function(e){
-      console.error('Erro Firestore:', e);
-    });
+    var payload = JSON.stringify(dataObj);
+    var url = 'https://script.google.com/macros/s/AKfycbzX5a9BTzHDirNaZRmc9fM2jCsUjMB3ZCceTkVWHfrVWPx6wj5zxWtJwyB4Z1e5SEI/exec';
+    
+    fetch(url, {
+      method: 'POST',
+      body: payload
+    }).then(function(response){ return response.json(); })
+      .then(function(result){
+        console.log('✅ Salvo no Google Sheets:', dataSel);
+      }).catch(function(e){
+        console.error('Erro ao salvar no Sheets:', e);
+      });
   }
 
   var dataBr = new Date(dataSel + 'T12:00:00').toLocaleDateString('pt-BR');
@@ -765,7 +773,7 @@ function salvarDia() {
   var stEl = document.getElementById('data-dia-status');
   stEl.className = 'data-dia-status salvo';
   stEl.textContent = '✓ Salvo: ' + dataBr + ' — ' + total.nEnd + ' endereços, ' + fmtD(total.totD) + ', ' + fmtT(total.totT);
-  toast('Salvo para ' + dataBr + '!', 'ok');
+  toast('Salvo para ' + dataBr + ' (Sheets + Local)!', 'ok');
 }
 
 function carregarHistorico() {
