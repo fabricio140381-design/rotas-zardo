@@ -800,60 +800,79 @@ function carregarHistorico() {
   }
 }
 
-// Função para carregar dados do Google Sheets
+// Função para carregar dados do Google Sheets via CSV (sem CORS!)
 function carregarDoSheets() {
-  var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyJcdEvCqFEau1YxCuLfaXEH-dcTuil8ImEEzR8Z49eYXAn7LCHshWY1lhKEQT-cK0/exec';
+  var SHEET_ID = '1ox0wS1SVPBoYksncazudFI7TdkxWsFlGkb0dDXnwulA';
+  var CSV_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv';
   
-  fetch(SHEETS_URL).then(function(response){
-    return response.json();
-  }).then(function(data){
-    console.log('📊 Dados recebidos do Sheets:', data.length);
+  fetch(CSV_URL).then(function(response){
+    return response.text();
+  }).then(function(csv){
+    console.log('📊 CSV recebido do Sheets');
     
-    if (data && data.length > 1) {
-      var historico = [];
-      
-      // Processar cada linha (começa em 1, pulando o header)
-      for (var i = 1; i < data.length; i++) {
-        try {
-          // Coluna 3 (índice 2) contém o JSON
-          var jsonStr = data[i][2];
-          if (jsonStr) {
-            var obj = JSON.parse(jsonStr);
-            if (obj && obj.data) {
-              historico.push(obj);
-              console.log('✅ Carregado:', obj.data);
-            }
-          }
-        } catch(e) {
-          console.error('Erro ao parsear linha ' + i + ':', e);
+    // Parse CSV manualmente
+    var linhas = csv.split('\n');
+    console.log('Total de linhas:', linhas.length);
+    
+    var historico = [];
+    
+    // Começa em 1 para pular o header
+    for (var i = 1; i < linhas.length; i++) {
+      try {
+        // Coluna 3 (índice 2) contém o JSON completo
+        // Precisa fazer split correto porque o JSON tem vírgulas
+        
+        // Achar o índice das aspas do JSON
+        var linha = linhas[i];
+        if (!linha || linha.trim() === '') continue;
+        
+        // O JSON começa após a segunda vírgula (depois de data e data)
+        // Procura pelo { que inicia o JSON
+        var indiceJSON = linha.indexOf('{');
+        if (indiceJSON === -1) continue;
+        
+        var jsonStr = linha.substring(indiceJSON);
+        
+        // Remove possíveis caracteres de quebra de linha no final
+        jsonStr = jsonStr.trim();
+        if (jsonStr.endsWith(',')) {
+          jsonStr = jsonStr.slice(0, -1);
         }
+        
+        var obj = JSON.parse(jsonStr);
+        if (obj && obj.data) {
+          historico.push(obj);
+          console.log('✅ Carregado:', obj.data);
+        }
+      } catch(e) {
+        console.error('Erro na linha ' + i + ':', e.message);
       }
+    }
+    
+    if (historico.length > 0) {
+      // Ordenar por data
+      historico.sort(function(a,b){ 
+        return new Date(a.data) - new Date(b.data); 
+      });
       
-      if (historico.length > 0) {
-        // Ordenar por data
-        historico.sort(function(a,b){ 
-          return new Date(a.data) - new Date(b.data); 
-        });
-        
-        // Salvar no localStorage
-        localStorage.setItem('zardo_historico', JSON.stringify(historico));
-        console.log('✅ Carregado do Google Sheets:', historico.length + ' dias');
-        
-        // Recarregar exibição
-        setTimeout(function(){
-          try {
-            renderDia(); 
-            renderSemana(); 
-            renderMes();
-            toast('Sincronizado com Sheets!', 'ok');
-          } catch(e) {
-            console.error('Erro ao renderizar:', e);
-          }
-        }, 300);
-      } else {
-        console.log('⚠️ Nenhum dado encontrado no Sheets');
-        toast('Nenhum dado no Sheets', 'info');
-      }
+      // Salvar no localStorage
+      localStorage.setItem('zardo_historico', JSON.stringify(historico));
+      console.log('✅ Carregado do Google Sheets:', historico.length + ' dias');
+      
+      // Recarregar exibição
+      setTimeout(function(){
+        try {
+          renderDia(); 
+          renderSemana(); 
+          renderMes();
+          toast('Sincronizado com Sheets!', 'ok');
+        } catch(e) {
+          console.error('Erro ao renderizar:', e);
+        }
+      }, 300);
+    } else {
+      console.log('⚠️ Nenhum dado encontrado no Sheets');
+      toast('Nenhum dado no Sheets', 'info');
     }
   }).catch(function(e){
     console.error('❌ Erro ao carregar do Sheets:', e);
