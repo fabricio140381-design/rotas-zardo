@@ -239,6 +239,14 @@ td.mn { font-family: monospace; }
 <script>
 var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzX5a9BTzHDirNaZRmc9fM2jCsUjMB3ZCceTkVWHfrVWPx6wj5zxWtJwyB4Z1e5SEI/exec';
 </script>
+<!-- Sincronizar com Google Sheets ao abrir -->
+<script>
+window.addEventListener('load', function() {
+  setTimeout(function() {
+    carregarDoSheets();
+  }, 500);
+});
+</script>
 </head>
 <body>
 
@@ -778,10 +786,51 @@ function salvarDia() {
 
 function carregarHistorico() {
   try { 
-    return JSON.parse(localStorage.getItem('zardo_historico') || '[]');
+    var arr = JSON.parse(localStorage.getItem('zardo_historico') || '[]');
+    
+    // Se localStorage vazio, carregar do Google Sheets
+    if (arr.length === 0) {
+      carregarDoSheets();
+    }
+    
+    return arr;
   } catch(e) { 
     return []; 
   }
+}
+
+// Função para carregar dados do Google Sheets
+function carregarDoSheets() {
+  var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzX5a9BTzHDirNaZRmc9fM2jCsUjMB3ZCceTkVWHfrVWPx6wj5zxWtJwyB4Z1e5SEI/exec';
+  
+  fetch(SHEETS_URL).then(function(response){
+    return response.json();
+  }).then(function(data){
+    if (data && data.length > 1) {
+      // Processar dados do Sheets
+      var historico = [];
+      for (var i = 1; i < data.length; i++) {
+        try {
+          var obj = JSON.parse(data[i][2]);
+          if (obj && obj.data) {
+            historico.push(obj);
+          }
+        } catch(e) {}
+      }
+      
+      if (historico.length > 0) {
+        historico.sort(function(a,b){ return a.data.localeCompare(b.data); });
+        localStorage.setItem('zardo_historico', JSON.stringify(historico));
+        console.log('✅ Carregado do Google Sheets:', historico.length + ' dias');
+        // Renderizar dados
+        setTimeout(function(){
+          renderDia(); renderSemana(); renderMes();
+        }, 500);
+      }
+    }
+  }).catch(function(e){
+    console.error('Erro ao carregar do Sheets:', e);
+  });
 }
 
 function limparHistorico() {
