@@ -750,6 +750,16 @@ function salvarDia() {
   historico.sort(function(a,b){ return a.data.localeCompare(b.data); });
   localStorage.setItem('zardo_historico', JSON.stringify(historico));
 
+  // SALVAR NO FIRESTORE
+  var dataObj = historico.find(function(h){ return h.data === dataSel; });
+  if (dataObj) {
+    db.collection('rotas').doc(dataSel).set(dataObj).then(function(){
+      console.log('✅ Salvo no Firestore:', dataSel);
+    }).catch(function(e){
+      console.error('Erro Firestore:', e);
+    });
+  }
+
   var dataBr = new Date(dataSel + 'T12:00:00').toLocaleDateString('pt-BR');
   var total = historico.find(function(h){ return h.data === dataSel; });
   var stEl = document.getElementById('data-dia-status');
@@ -759,12 +769,48 @@ function salvarDia() {
 }
 
 function carregarHistorico() {
-  try { return JSON.parse(localStorage.getItem('zardo_historico') || '[]'); } catch(e) { return []; }
+  try { 
+    var arr = JSON.parse(localStorage.getItem('zardo_historico') || '[]');
+    
+    // Se localStorage vazio, tentar carregar do Firestore
+    if (arr.length === 0) {
+      db.collection('rotas').get().then(function(snapshot){
+        var dados = [];
+        snapshot.forEach(function(doc){
+          dados.push(doc.data());
+        });
+        if (dados.length > 0) {
+          dados.sort(function(a,b){ return a.data.localeCompare(b.data); });
+          localStorage.setItem('zardo_historico', JSON.stringify(dados));
+          console.log('✅ Carregado do Firestore:', dados.length + ' dias');
+          // Recarregar relatórios
+          renderDia(); renderSemana(); renderMes();
+        }
+      }).catch(function(e){
+        console.error('Erro ao carregar do Firestore:', e);
+      });
+    }
+    
+    return arr;
+  } catch(e) { 
+    return []; 
+  }
 }
 
 function limparHistorico() {
-  if (!confirm('Apagar todo o histórico de rotas?')) return;
+  if (!confirm('Apagar todo o histórico de rotas? (Inclui nuvem)')) return;
   localStorage.removeItem('zardo_historico');
+  
+  // Limpar Firestore também
+  db.collection('rotas').get().then(function(snapshot){
+    snapshot.forEach(function(doc){
+      doc.ref.delete();
+    });
+    console.log('✅ Histórico limpo no Firestore');
+  }).catch(function(e){
+    console.error('Erro ao limpar Firestore:', e);
+  });
+  
   renderDia(); renderSemana(); renderMes();
   toast('Histórico apagado.','ok');
 }
