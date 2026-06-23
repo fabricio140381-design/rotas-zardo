@@ -807,30 +807,57 @@ function carregarDoSheets() {
   fetch(SHEETS_URL).then(function(response){
     return response.json();
   }).then(function(data){
+    console.log('📊 Dados recebidos do Sheets:', data.length);
+    
     if (data && data.length > 1) {
-      // Processar dados do Sheets
       var historico = [];
+      
+      // Processar cada linha (começa em 1, pulando o header)
       for (var i = 1; i < data.length; i++) {
         try {
-          var obj = JSON.parse(data[i][2]);
-          if (obj && obj.data) {
-            historico.push(obj);
+          // Coluna 3 (índice 2) contém o JSON
+          var jsonStr = data[i][2];
+          if (jsonStr) {
+            var obj = JSON.parse(jsonStr);
+            if (obj && obj.data) {
+              historico.push(obj);
+              console.log('✅ Carregado:', obj.data);
+            }
           }
-        } catch(e) {}
+        } catch(e) {
+          console.error('Erro ao parsear linha ' + i + ':', e);
+        }
       }
       
       if (historico.length > 0) {
-        historico.sort(function(a,b){ return a.data.localeCompare(b.data); });
+        // Ordenar por data
+        historico.sort(function(a,b){ 
+          return new Date(a.data) - new Date(b.data); 
+        });
+        
+        // Salvar no localStorage
         localStorage.setItem('zardo_historico', JSON.stringify(historico));
         console.log('✅ Carregado do Google Sheets:', historico.length + ' dias');
-        // Renderizar dados
+        
+        // Recarregar exibição
         setTimeout(function(){
-          renderDia(); renderSemana(); renderMes();
-        }, 500);
+          try {
+            renderDia(); 
+            renderSemana(); 
+            renderMes();
+            toast('Sincronizado com Sheets!', 'ok');
+          } catch(e) {
+            console.error('Erro ao renderizar:', e);
+          }
+        }, 300);
+      } else {
+        console.log('⚠️ Nenhum dado encontrado no Sheets');
+        toast('Nenhum dado no Sheets', 'info');
       }
     }
   }).catch(function(e){
-    console.error('Erro ao carregar do Sheets:', e);
+    console.error('❌ Erro ao carregar do Sheets:', e);
+    toast('Erro ao sincronizar', 'err');
   });
 }
 
