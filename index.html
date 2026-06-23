@@ -237,7 +237,7 @@ td.mn { font-family: monospace; }
 </style>
 <!-- Google Sheets Integration -->
 <script>
-var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyEXntn9BwkNbaO7sUFyjL9jLUZZhproHf91gBDuDInyv0xOxDzWhkq9Ts4K-7NLI0/exec';
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyJcdEvCqFEau1YxCuLfaXEH-dcTuil8ImEEzR8Z49eYXAn7LCHshWY1lhKEQT-cK0/exec';
 </script>
 <!-- Sincronizar com Google Sheets ao abrir -->
 <script>
@@ -764,7 +764,7 @@ function salvarDia() {
   var dataObj = historico.find(function(h){ return h.data === dataSel; });
   if (dataObj) {
     var payload = JSON.stringify(dataObj);
-    var url = 'https://script.google.com/macros/s/AKfycbyEXntn9BwkNbaO7sUFyjL9jLUZZhproHf91gBDuDInyv0xOxDzWhkq9Ts4K-7NLI0/exec';
+    var url = 'https://script.google.com/macros/s/AKfycbyJcdEvCqFEau1YxCuLfaXEH-dcTuil8ImEEzR8Z49eYXAn7LCHshWY1lhKEQT-cK0/exec';
     
     fetch(url, {
       method: 'POST',
@@ -802,7 +802,7 @@ function carregarHistorico() {
 
 // Função para carregar dados do Google Sheets
 function carregarDoSheets() {
-  var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyEXntn9BwkNbaO7sUFyjL9jLUZZhproHf91gBDuDInyv0xOxDzWhkq9Ts4K-7NLI0/exec';
+  var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyJcdEvCqFEau1YxCuLfaXEH-dcTuil8ImEEzR8Z49eYXAn7LCHshWY1lhKEQT-cK0/exec';
   
   fetch(SHEETS_URL).then(function(response){
     return response.json();
