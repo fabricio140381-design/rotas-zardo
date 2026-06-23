@@ -778,47 +778,15 @@ function salvarDia() {
 
 function carregarHistorico() {
   try { 
-    var arr = JSON.parse(localStorage.getItem('zardo_historico') || '[]');
-    
-    // Se localStorage vazio, tentar carregar do Firestore
-    if (arr.length === 0) {
-      db.collection('rotas').get().then(function(snapshot){
-        var dados = [];
-        snapshot.forEach(function(doc){
-          dados.push(doc.data());
-        });
-        if (dados.length > 0) {
-          dados.sort(function(a,b){ return a.data.localeCompare(b.data); });
-          localStorage.setItem('zardo_historico', JSON.stringify(dados));
-          console.log('✅ Carregado do Firestore:', dados.length + ' dias');
-          // Recarregar relatórios
-          renderDia(); renderSemana(); renderMes();
-        }
-      }).catch(function(e){
-        console.error('Erro ao carregar do Firestore:', e);
-      });
-    }
-    
-    return arr;
+    return JSON.parse(localStorage.getItem('zardo_historico') || '[]');
   } catch(e) { 
     return []; 
   }
 }
 
 function limparHistorico() {
-  if (!confirm('Apagar todo o histórico de rotas? (Inclui nuvem)')) return;
+  if (!confirm('Apagar todo o histórico de rotas?')) return;
   localStorage.removeItem('zardo_historico');
-  
-  // Limpar Firestore também
-  db.collection('rotas').get().then(function(snapshot){
-    snapshot.forEach(function(doc){
-      doc.ref.delete();
-    });
-    console.log('✅ Histórico limpo no Firestore');
-  }).catch(function(e){
-    console.error('Erro ao limpar Firestore:', e);
-  });
-  
   renderDia(); renderSemana(); renderMes();
   toast('Histórico apagado.','ok');
 }
@@ -1185,18 +1153,6 @@ function exportar() {
   toast('Exportado!','ok');
 }
 </script>
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDB53gZW14xUutoWwJAh-EWwwu7gGJDR5U",
-  authDomain: "rotas-zardo.firebaseapp.com",
-  projectId: "rotas-zardo",
-  storageBucket: "rotas-zardo.appspot.com",
-  messagingSenderId: "561985236637",
-  appId: "1:561985236637:web:4f36c9209be575c316ae74"
-};
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-</script>
 </body>
 </html>
