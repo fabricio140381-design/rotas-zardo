@@ -803,81 +803,82 @@ function carregarHistorico() {
 // Função para carregar dados do Google Sheets via CSV (sem CORS!)
 function carregarDoSheets() {
   var SHEET_ID = '1ox0wS1SVPBoYksncazudFI7TdkxWsFlGkb0dDXnwulA';
-  var CSV_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv';
-  
-  fetch(CSV_URL).then(function(response){
-    return response.text();
-  }).then(function(csv){
-    console.log('📊 CSV recebido do Sheets');
-    
-    // Parse CSV manualmente
-    var linhas = csv.split('\n');
-    console.log('Total de linhas:', linhas.length);
-    
-    var historico = [];
-    
-    // Começa em 1 para pular o header
-    for (var i = 1; i < linhas.length; i++) {
-      try {
-        // Coluna 3 (índice 2) contém o JSON completo
-        // Precisa fazer split correto porque o JSON tem vírgulas
-        
-        // Achar o índice das aspas do JSON
-        var linha = linhas[i];
-        if (!linha || linha.trim() === '') continue;
-        
-        // O JSON começa após a segunda vírgula (depois de data e data)
-        // Procura pelo { que inicia o JSON
-        var indiceJSON = linha.indexOf('{');
-        if (indiceJSON === -1) continue;
-        
-        var jsonStr = linha.substring(indiceJSON);
-        
-        // Remove possíveis caracteres de quebra de linha no final
-        jsonStr = jsonStr.trim();
-        if (jsonStr.endsWith(',')) {
-          jsonStr = jsonStr.slice(0, -1);
-        }
-        
-        var obj = JSON.parse(jsonStr);
-        if (obj && obj.data) {
-          historico.push(obj);
-          console.log('✅ Carregado:', obj.data);
-        }
-      } catch(e) {
-        console.error('Erro na linha ' + i + ':', e.message);
+
+  // Remove callback anterior se existir
+  var scriptAntigo = document.getElementById('gviz-script-tag');
+  if (scriptAntigo) scriptAntigo.remove();
+
+  // Define a função global que o Google vai chamar (JSONP)
+  window.google = window.google || {};
+  window.google.visualization = window.google.visualization || {};
+  window.google.visualization.Query = window.google.visualization.Query || {};
+  window.google.visualization.Query.setResponse = function(resposta) {
+    try {
+      console.log('📊 Resposta gviz recebida');
+
+      if (!resposta || !resposta.table || !resposta.table.rows) {
+        console.log('⚠️ Sem linhas na planilha');
+        toast('Nenhum dado no Sheets', 'info');
+        return;
       }
-    }
-    
-    if (historico.length > 0) {
-      // Ordenar por data
-      historico.sort(function(a,b){ 
-        return new Date(a.data) - new Date(b.data); 
-      });
-      
-      // Salvar no localStorage
-      localStorage.setItem('zardo_historico', JSON.stringify(historico));
-      console.log('✅ Carregado do Google Sheets:', historico.length + ' dias');
-      
-      // Recarregar exibição
-      setTimeout(function(){
+
+      var linhas = resposta.table.rows;
+      var historico = [];
+
+      for (var i = 0; i < linhas.length; i++) {
         try {
-          renderDia(); 
-          renderSemana(); 
-          renderMes();
-          toast('Sincronizado com Sheets!', 'ok');
+          var celulas = linhas[i].c;
+          if (!celulas || !celulas[2] || !celulas[2].v) continue;
+
+          var jsonStr = celulas[2].v;
+          var obj = JSON.parse(jsonStr);
+          if (obj && obj.data) {
+            historico.push(obj);
+            console.log('✅ Carregado:', obj.data);
+          }
         } catch(e) {
-          console.error('Erro ao renderizar:', e);
+          console.error('Erro na linha ' + i + ':', e.message);
         }
-      }, 300);
-    } else {
-      console.log('⚠️ Nenhum dado encontrado no Sheets');
-      toast('Nenhum dado no Sheets', 'info');
+      }
+
+      if (historico.length > 0) {
+        historico.sort(function(a,b){
+          return new Date(a.data) - new Date(b.data);
+        });
+
+        localStorage.setItem('zardo_historico', JSON.stringify(historico));
+        console.log('✅ Carregado do Google Sheets:', historico.length + ' dias');
+
+        setTimeout(function(){
+          try {
+            renderDia();
+            renderSemana();
+            renderMes();
+            toast('Sincronizado com Sheets!', 'ok');
+          } catch(e) {
+            console.error('Erro ao renderizar:', e);
+          }
+        }, 300);
+      } else {
+        console.log('⚠️ Nenhum dado válido encontrado');
+        toast('Nenhum dado no Sheets', 'info');
+      }
+    } catch(e) {
+      console.error('❌ Erro ao processar resposta:', e);
+      toast('Erro ao sincronizar', 'err');
     }
-  }).catch(function(e){
-    console.error('❌ Erro ao carregar do Sheets:', e);
+  };
+
+  // Cria a tag <script> que faz a requisição JSONP (sem CORS!)
+  var script = document.createElement('script');
+  script.id = 'gviz-script-tag';
+  script.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+    '/gviz/tq?tqx=responseHandler:google.visualization.Query.setResponse&headers=0';
+  script.onerror = function() {
+    console.error('❌ Erro ao carregar script gviz');
     toast('Erro ao sincronizar', 'err');
-  });
+  };
+  document.body.appendChild(script);
 }
 
 function limparHistorico() {
